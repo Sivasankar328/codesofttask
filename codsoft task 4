@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz App</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .fade-in { animation: fadeIn 0.5s ease forwards; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen dark:bg-gray-900 transition-colors duration-300">
+    <div class="container mx-auto px-4 py-8 max-w-md">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 dark:text-white">
+                Quiz App
+            </h1>
+            <p class="text-gray-600 dark:text-gray-300">Test your knowledge!</p>
+        </header>
+
+        <!-- Quiz Selection -->
+        <div id="quiz-selection" class="fade-in">
+            <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-4">Select a Quiz</h2>
+            <button id="start-random-quiz" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-full mb-4">
+                Start Random Quiz
+            </button>
+            <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Available Quizzes:</h3>
+            <ul id="quiz-list" class="space-y-2">
+                <!-- Quiz options will be populated here -->
+            </ul>
+        </div>
+
+        <!-- Quiz Questions -->
+        <div id="quiz-questions" class="hidden fade-in">
+            <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-4" id="question-text"></h2>
+            <div id="options" class="space-y-2 mb-4"></div>
+            <button id="submit-answer" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-full">
+                Submit Answer
+            </button>
+        </div>
+
+        <!-- Result Screen -->
+        <div id="result-screen" class="hidden fade-in">
+            <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-4">Quiz Completed!</h2>
+            <p class="text-lg font-bold text-gray-800 dark:text-white mb-2">Your Score: <span id="final-score"></span></p>
+            <div id="correct-answers" class="space-y-2"></div>
+            <button id="restart-quiz" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-full mt-4">
+                Restart Quiz
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Quiz data
+        const quizzes = [
+            {
+                title: "General Knowledge",
+                questions: [
+                    {
+                        question: "What is the capital of France?",
+                        options: ["Berlin", "Madrid", "Paris", "Lisbon"],
+                        answer: "Paris"
+                    },
+                    {
+                        question: "Which planet is known as the Red Planet?",
+                        options: ["Earth", "Mars", "Jupiter", "Saturn"],
+                        answer: "Mars"
+                    },
+                    {
+                        question: "What is the largest ocean on Earth?",
+                        options: ["Atlantic Ocean", "Indian Ocean", "Arctic Ocean", "Pacific Ocean"],
+                        answer: "Pacific Ocean"
+                    }
+                ]
+            },
+            {
+                title: "Science",
+                questions: [
+                    {
+                        question: "What is the chemical symbol for water?",
+                        options: ["H2O", "O2", "CO2", "NaCl"],
+                        answer: "H2O"
+                    },
+                    {
+                        question: "What is the speed of light?",
+                        options: ["300,000 km/s", "150,000 km/s", "1,000 km/s", "3,000 km/s"],
+                        answer: "300,000 km/s"
+                    },
+                    {
+                        question: "What is the powerhouse of the cell?",
+                        options: ["Nucleus", "Mitochondria", "Ribosome", "Endoplasmic Reticulum"],
+                        answer: "Mitochondria"
+                    }
+                ]
+            },
+            {
+                title: "History",
+                questions: [
+                    {
+                        question: "Who was the first President of the United States?",
+                        options: ["George Washington", "Thomas Jefferson", "Abraham Lincoln", "John Adams"],
+                        answer: "George Washington"
+                    },
+                    {
+                        question: "What year did World War II end?",
+                        options: ["1945", "1944", "1939", "1950"],
+                        answer: "1945"
+                    },
+                    {
+                        question: "Who discovered America?",
+                        options: ["Christopher Columbus", "Ferdinand Magellan", "Marco Polo", "Leif Erikson"],
+                        answer: "Christopher Columbus"
+                    }
+                ]
+            }
+        ];
+
+        // DOM Elements
+        const quizSelection = document.getElementById('quiz-selection');
+        const quizQuestions = document.getElementById('quiz-questions');
+        const resultScreen = document.getElementById('result-screen');
+        const questionText = document.getElementById('question-text');
+        const optionsContainer = document.getElementById('options');
+        const finalScore = document.getElementById('final-score');
+        const correctAnswersContainer = document.getElementById('correct-answers');
+        const startRandomQuiz = document.getElementById('start-random-quiz');
+        const submitAnswer = document.getElementById('submit-answer');
+        const restartQuiz = document.getElementById('restart-quiz');
+
+        let currentQuiz = null;
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let userAnswers = [];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadQuizList();
+            startRandomQuiz.addEventListener('click', startQuiz);
+            restartQuiz.addEventListener('click', restartQuizHandler);
+        });
+
+        // Load quiz list
+        function loadQuizList() {
+            const quizList = document.getElementById('quiz-list');
+            quizzes.forEach((quiz, index) => {
+                const listItem = document.createElement('li');
+                listItem.innerHTML = `<button class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-full" data-index="${index}">${quiz.title}</button>`;
+                listItem.querySelector('button').addEventListener('click', () => startQuiz(index));
+                quizList.appendChild(listItem);
+            });
+        }
+
+        // Start quiz
+        function startQuiz(index) {
+            if (index === undefined) {
+                index = Math.floor(Math.random() * quizzes.length);
+            }
+            currentQuiz = quizzes[index];
+            currentQuestionIndex = 0;
+            score = 0;
+            userAnswers = [];
+            quizSelection.classList.add('hidden');
+            quizQuestions.classList.remove('hidden');
+            loadQuestion();
+        }
+
+        // Load question
+        function loadQuestion() {
+            const question = currentQuiz.questions[currentQuestionIndex];
+            questionText.textContent = question.question;
+            optionsContainer.innerHTML = '';
+
+            question.options.forEach(option => {
+                const button = document.createElement('button');
+                button.textContent = option;
+                button.className = "bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-full w-full";
+                button.addEventListener('click', () => selectAnswer(option));
+                optionsContainer.appendChild(button);
+            });
+        }
+
+        // Select answer
+        function selectAnswer(selectedOption) {
+            const question = currentQuiz.questions[currentQuestionIndex];
+            userAnswers.push(selectedOption);
+            if (selectedOption === question.answer) {
+                score++;
+            }
+            currentQuestionIndex++;
+            if (currentQuestionIndex < currentQuiz.questions.length) {
+                loadQuestion();
+            } else {
+                showResult();
+            }
+        }
+
+        // Show result
+        function showResult() {
+            quizQuestions.classList.add('hidden');
+            resultScreen.classList.remove('hidden');
+            finalScore.textContent = `${score} out of ${currentQuiz.questions.length}`;
+            correctAnswersContainer.innerHTML = '';
+
+            currentQuiz.questions.forEach((question, index) => {
+                const answerElement = document.createElement('div');
+                answerElement.className = "mb-2";
+                answerElement.innerHTML = `
+                    <strong>Q${index + 1}: ${question.question}</strong><br>
+                    Your Answer: <span class="${userAnswers[index] === question.answer ? 'text-green-500' : 'text-red-500'}">${userAnswers[index]}</span><br>
+                    Correct Answer: <span class="text-blue-500">${question.answer}</span>
+                `;
+                correctAnswersContainer.appendChild(answerElement);
+            });
+        }
+
+        // Restart quiz handler
+        function restartQuizHandler() {
+            resultScreen.classList.add('hidden');
+            quizSelection.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
